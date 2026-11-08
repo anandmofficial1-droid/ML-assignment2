@@ -42,16 +42,23 @@ def label_name(value):
     return "Malignant" if value == 1 else "Benign"
 
 
-st.set_page_config(page_title="Breast Cancer Classifier", layout="wide")
-st.title("Breast Cancer Wisconsin (Diagnostic) Classifier")
+st.set_page_config(page_title="Breast Cancer Diagnosis Comparison", layout="wide")
+st.title("Breast Cancer Diagnosis: Comparing Five Classifiers")
+st.markdown(
+    "Classifies breast tumours as **Benign** or **Malignant** from 30 measurements of cell nuclei "
+    "(UCI Wisconsin Diagnostic Breast Cancer dataset, 569 samples). The models were trained offline "
+    "by `Source_code.py`; this app only loads them and scores the test split."
+)
 
 models = load_models()
 default_df = load_default_test_data()
 FEATURES = [col for col in default_df.columns if col != TARGET]
 
-st.sidebar.header("Settings")
+st.sidebar.header("Choose model and data")
 model_name = st.sidebar.selectbox("Model", list(models))
-uploaded_file = st.sidebar.file_uploader("Upload test data (CSV)", type="csv")
+uploaded_file = st.sidebar.file_uploader(
+    "Upload a test CSV (30 feature columns + diagnosis)", type="csv"
+)
 
 if uploaded_file is None:
     test_df = default_df
@@ -95,10 +102,13 @@ with col2:
 
 st.subheader("Comparison of all models")
 all_metrics = {name: evaluate(m, X_test, y_test) for name, m in models.items()}
-st.dataframe(pd.DataFrame(all_metrics).T.round(4), width="stretch")
+comparison = pd.DataFrame(all_metrics).T.round(4)
+st.dataframe(comparison, width="stretch")
+best = comparison["MCC"].idxmax()
+st.success(f"Best model on this test data (highest MCC): **{best}** ({comparison.loc[best, 'MCC']:.4f})")
 
-st.subheader("Predict a sample")
-index = st.number_input("Sample index", min_value=0, max_value=len(X_test) - 1, value=0, step=1)
+st.subheader("Inspect a single test row")
+index = st.number_input("Row number in test data", min_value=0, max_value=len(X_test) - 1, value=0, step=1)
 prediction = model.predict(X_test.iloc[[index]])[0]
 actual = y_test.iloc[index]
 st.write(f"Predicted: **{label_name(prediction)}** | Actual: **{label_name(actual)}**")
